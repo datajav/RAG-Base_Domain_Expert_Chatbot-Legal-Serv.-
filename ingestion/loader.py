@@ -36,3 +36,46 @@ def load_pdf(file_path: str) -> list[dict[str, any]]:
                 })
                 
         return_pages
+
+
+def load_docx(file_path:str) -> list[dict[str, any]]: 
+
+    source_name = Path(file_path).name
+    doc = Document(file_path)
+
+
+    pages = []
+    current_text = []
+    current_length = 0
+    virtual_page_number = 1
+    virtual_page_size = 3000
+
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
+            continue
+
+        current_text.append(text)
+        current_length += len(text)
+
+        if current_length >= virtual_page_size:
+            pages.append({
+                "text": "\n".join(current_text), 
+                "page_number": virtual_page_number, 
+                "source": source_name, 
+                "file_type": "docx"
+            }) 
+
+            current_text = []
+            current_length = 0
+            virtual_page_number += 1
+
+    if current_text: 
+        pages.append({
+                "text": "\n".join(current_text), 
+                "page_number": virtual_page_number, 
+                "source": source_name, 
+                "file_type": "docx"
+            }) 
+        
+    return pages
