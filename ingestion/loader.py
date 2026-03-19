@@ -79,3 +79,33 @@ def load_docx(file_path:str) -> list[dict[str, any]]:
             }) 
         
     return pages
+
+
+def load_document(file_path: str) -> list[dict[str, any]]: 
+
+    path = Path(file_path)
+
+    if not path.exists(): 
+        raise FileNotFoundError(f"Document not found: {file_path}")
+    suffix = path.suffix.lower()
+
+    if suffix == ".pdf": 
+        return load_pdf(file_path)
+    
+    elif suffix in (".docx", ".doc"):
+        return load_docx(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {suffix}")
+    
+def load_directory(dir_path: str) -> list[dict[str, any]]:
+    dir_path = Path(dir_path)
+    all_pages = []
+    supported_extensions = {".pdf", ".docx", ".doc"}
+
+    files = [
+        f for f in dir_path.iterdir()
+        if f.is_file() and f.suffix.lower() in supported_extensions
+    ]
+
+    if not files: 
+        raise ValueError(f"No supported files founn in directory: ")
