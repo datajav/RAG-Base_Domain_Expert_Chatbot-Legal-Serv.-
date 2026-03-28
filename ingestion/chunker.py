@@ -18,6 +18,21 @@ def chunk_legal_document(
     min_chunk_size: int = 100, 
     overlap_sentences: int = 2,
 ) -> list[dict[str, Any]]:
+
+    """
+    Convert a list of raw pages into clause-aware chunks.
+
+    Args:
+        pages:              Output from ingestion/loader.py
+        max_chunk_size:     Max characters per chunk (larger than generic RAG
+                            because legal clauses need more context)
+        min_chunk_size:     Ignore chunks shorter than this (usually headers)
+        overlap_sentences:  How many sentences to repeat between chunks
+                            for continuity (replaces character-based overlap)
+
+    Returns:
+        List of chunk dicts (see module docstring for schema)
+    """
     
     all_chunks = []
     chunk_index = 0
