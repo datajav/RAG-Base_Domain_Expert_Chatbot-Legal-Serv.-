@@ -125,3 +125,28 @@ def chunk_page(
                         section_number=section_number,
                         section_title=section_title,
                     ))
+                    chunk_index += 1
+                    overlap_buffer = get_last_n_sentences(sub_chunks[-1], overlap_sentences)
+
+                    return chunks
+                
+
+def _split_into_sections(text: str) -> list[dict[str, any]]:
+    """
+    Use regex patterns to split text into sections based on common legal document structures.
+
+    Returns a list of dicts with keys: section_number, section_title, text.
+    """
+    # Implementation would involve applying the SECTION_PATTERNS to the text and extracting matches to define section boundaries. Each section would be stored with its number, title, and text content for further processing in chunking.
+    pass
+
+section_starts = []
+
+for pattern in SECTION_PATTERNS:
+    for match in pattern.finditer(text):
+        section_starts.append({
+            "pos":match.start(),
+            "section_number": _extract_section_number(match), 
+            "section_title": _extract_section_title(match)
+        })
+
