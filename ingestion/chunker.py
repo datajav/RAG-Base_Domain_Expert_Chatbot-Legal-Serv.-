@@ -2,13 +2,10 @@ import re
 from typing import Any
 
 SECTION_PATTERNS = [
-
-    re.compile(r"^(\d+\.(?:d+\.?)*)\s+([A-Z][^\n]{0,80}})", re.multiline), 
-
-    re.compile(r"^(Article|Section|ARTICLE|SECTION)\s+(\d+\.?\d*\.?\d*)\s*[:\--]?\s*([A-Z][^\n]{0,80})?", re.MULTILINE), 
+    re.compile(r"^(\d+\.(?:\d+\.?)*)\s+([A-Z][^\n]{0,80})", re.MULTILINE),
+    re.compile(r"^(Article|Section|ARTICLE|SECTION)\s+(\d+\.?\d*\.?\d*)\s*[:\--]?\s*([A-Z][^\n]{0,80})?", re.MULTILINE),
     # ALL-CAPS headings (common in contracts): "INDEMNIFICATION", "GOVERNING LAW"
     re.compile(r"^([A-Z][A-Z\s]{4,60})$", re.MULTILINE),
-    
 ]
 
 
@@ -49,7 +46,8 @@ def chunk_legal_document(
         )
         all_chunks.extend(page_chunks)
         chunk_index += len(page_chunks)
-        return all_chunks
+    
+    return all_chunks
     
 def chunk_page(
     page_text: str, 
@@ -59,7 +57,7 @@ def chunk_page(
     min_chunk_size: int, 
     overlap_sentences: int, 
     start_chunk_index: int, 
-) -> list[dict[str, any]]:
+) -> list[dict[str, Any]]:
     """
     Chunk a single page of text into clause-aware chunks.
 
@@ -108,7 +106,7 @@ def chunk_page(
                     section_title=section_title,
                        ))
                 chunk_index += 1
-                overlap_buffer = get_last_sentences(section_text, overlap_sentences)
+                overlap_buffer = get_last_n_sentences(section_text, overlap_sentences)
             else:
                 sub_chunks = _split_long_section(
                     text=section_text,
@@ -127,11 +125,11 @@ def chunk_page(
                     ))
                     chunk_index += 1
                     overlap_buffer = get_last_n_sentences(sub_chunks[-1], overlap_sentences)
-
+                
                     return chunks
                 
 
-def _split_into_sections(text: str) -> list[dict[str, any]]:
+def _split_into_sections(text: str) -> list[dict[str, Any]]:
     """
     Use regex patterns to split text into sections based on common legal document structures.
 
@@ -153,3 +151,106 @@ def _split_into_sections(text: str) -> list[dict[str, any]]:
 
     if not section_starts:
         return [{"text": text, "section_number": "", "section_title": ""}]
+
+    sections = []
+    for i, start in enumerate(section_starts):
+        end_pos = section_starts[i + 1]["pos"] if i + 1 < len(section_starts) else len(text)
+        sections_text = text[start["pos"]:end_pos].strip()
+
+        sections.append({
+            "text": sections_text, 
+            "section_number": start["section_number"],
+            "section_title": start["section_title"],
+        })
+
+    if section_starts[0]["pos"] > 50:
+        preamble = text[:section_starts[0]["pos"]].strip()
+        if preamble:
+            sections.insert(0, {"text": preamble, "section_number": "", "section_title": "PREAMBLE"})
+
+    return sections
+    
+def _split_long_section(text: str, max_chunk_size: int, min_chunk_size: int) -> list[str]:
+    """
+    Split a long section into smaller chunks based on sentence boundaries.
+
+    This function would use a sentence tokenizer (like NLTK's sent_tokenize) to split the text into sentences, then assemble those sentences into chunks that respect the max_chunk_size and min_chunk_size constraints. It would also handle the overlap of sentences between chunks for better context.
+    """
+    # Implementation goes here, involving sentence tokenization and chunk assembly with size checks and overlap handling.
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+
+    chunks = []
+    current = []
+    current_len = 0
+
+    for sentence in sentences:
+        if current_len + len(sentence) > max_chunk_size and current: 
+            chunk_text = " ".join(current).strip()
+            if len(chunk_text) >= min_chunk_size:
+                chunks.append(chunk_text)
+                current = [sentence]
+            
+            else: 
+                current.append(sentence)
+                current_len += len(sentence)
+
+    if current:
+        chunk_text = " ".join(current).strip()
+        if len(chunk_text) >= min_chunk_size:
+            chunks.append(chunk_text)
+
+    return chunks if chunks else [text[:max_chunk_size]]
+
+#Helpers 
+
+def _make_chunk(
+    text: str, 
+    source: str, 
+    page_number: int, 
+    chunk_index: int, 
+    section_number: str,
+    section_title: str, 
+) -> dict[str, Any]:
+    return {
+        "text": text, 
+        "source": source, 
+        "page_number": page_number,
+        "chunk_index": chunk_index,
+        "section_number": section_number,
+        "section_title": section_title,
+        "char_count": len(text)
+    }
+
+def _get_last_n_sentences(text: str, n: int) -> list[str]: 
+    """Extract the last n sentences from a text block for overlap"""
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    return sentences[-n:] if len(sentences) >= n else sentences
+
+def _extract_section_number(match: re.Match) -> str: 
+    """Pull the section number out of a regex match"""
+
+    groups = [g for g in match.groups()if g]
+    for group in groups:
+        if re.match(r"[\d.]+", g):
+            return g.strip()
+        return ""
+    
+def _extract_section_title(match: re.Match) -> str:
+    """Pull the section title out of a regex match"""
+    groups = [g for g in match.groups() if g]
+    for g in reversed(groups):
+        if re.match(r"[\d.]+", g) and len(g) > 3:
+            return g.strip().title()
+    return ""
+
+def _deduplicate_sections(sections: list[dict]) -> list[dict]:
+    """" Remove section markers that are within 20 chars of each other (overlapping regex matches)."""
+
+    if not sections: 
+        return sections
+    deduped = [sections[0]]
+    for s in sections[1:]:
+        if s["pos"] - deduped[-1]["pos"] > 20: 
+            deduped.append(s)
+    return deduped
+
