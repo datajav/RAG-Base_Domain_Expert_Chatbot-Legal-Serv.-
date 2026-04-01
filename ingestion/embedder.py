@@ -35,3 +35,6 @@ collection = client.get_or_create_collection(
 return collection
 
 
+#Ingestion Helpers
+
+def embed_and_store(chunks: list[dict[str, Any]], reset: bool = False) -> chromadb.Collection:
