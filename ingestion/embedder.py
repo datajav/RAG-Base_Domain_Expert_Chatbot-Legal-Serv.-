@@ -11,7 +11,7 @@ Console = Console()
 
 #Constants for Application
 
-COLLECTION_NAME = 
+COLLECTION_NAME = "LegalMind RAG"
 CHROMA_PERSIST_DIR = "./chroma_db" 
 EMBEDDING_MODEL = "text-embedding-3-small"
 
@@ -26,15 +26,34 @@ def get_collection(client: chromadb.PersistentClient) -> chromadb.Collection:
         model_name=EMBEDDING_MODEL
     )
 
-collection = client.get_or_create_collection(
-    name=COLLECTION_NAME,
-    embedding_functions=openai_ef
-    metadata={"hnsw:space": "cosine"}
-)
+    collection = client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        embedding_function=openai_ef,
+        metadata={"hnsw:space": "cosine"}
+    )
 
-return collection
+    return collection
 
 
 #Ingestion Helpers
 
 def embed_and_store(chunks: list[dict[str, Any]], reset: bool = False) -> chromadb.Collection:
+    client = get_chroma_client()
+
+    if reset:
+        Console.print("[yellow] Resetting collection - deleting existing vectors...[/yellow]")
+        try:
+            client.delete_collection(COLLECTION_NAME)
+        except Exception:
+            pass
+
+    collection = get_collection(client)
+    existing_count = collection.count()
+
+    if existing_count > 0:
+        Console.print(f"\n[bold yellow] Embedding {len(chunks)} chunks into ChromaDB collection '{COLLECTION_NAME}' (existing vectors: {existing_count})...[/bold yellow]")
+        Console.print(f" Model: {EMBEDDING_MODEL}")
+        Console.print(f" Storage: {CHROMA_PERSIST_DIR}\n")
+
+
+
